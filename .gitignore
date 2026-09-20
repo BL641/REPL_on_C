@@ -1,0 +1,42 @@
+# Специфичные файлы Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Папки сборки и кэша компилятора
+Debug/
+Release/
+x64/
+x86/
+ARM/
+ARM64/
+[Dd]ebug/
+[Rr]elease/
+
+# Файлы промежуточной сборки и отладки
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.out
+*.app
+*.iobj
+*.ipdb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.idb
+
+# Файлы базы данных кода (IntelliSense)
+*.ncb
+*.opensdf
+*.sdf
+*.db
+*.ipch
+
+# Временные файлы и бэкапы
+*.bak
+*.tmp
+*.log
