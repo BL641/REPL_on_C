@@ -1,2 +1,2 @@
 vfs: from-file
-script: smart.txt
+script: config/smart.txt

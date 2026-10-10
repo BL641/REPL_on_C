@@ -1,0 +1,8 @@
+ls
+cd /
+echo stage3
+cd missing
+not-a-command
+vfs-init
+ls
+exit

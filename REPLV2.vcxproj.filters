@@ -15,8 +15,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="REPLV2.c">
+    <ClCompile Include="src\c-flies\REPLV2.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="src\c-flies\VFS.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClInclude Include="src\headers\VFS.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -10,6 +10,11 @@
 #include <locale.h>
 #include <ctype.h>
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+#include "VFS.h"
+
 static int boolean = 1;
 
 typedef struct VFS {
@@ -25,7 +30,7 @@ typedef struct REPLComm {
     const char* command;
     void (*Chandler)(struct REPLComm* table, char* args);
 } REPLComm;
-    
+
 void cmd_cd(REPLComm* this, char* args) {
     printf("cd: args = '%s'\n", args);
 }
@@ -36,7 +41,7 @@ void cmd_ls(REPLComm* this, char* args) {
 
 void cmd_echo(REPLComm* this, char* args) {
     if (strlen(args) == 0) {
-        printf("Вывод на консоль был включен\n");
+        console_printf("Вывод на консоль был включен\n");
     }
     else {
         printf("%s\n", args);
@@ -45,6 +50,14 @@ void cmd_echo(REPLComm* this, char* args) {
 
 void cmd_exit(REPLComm* this, char* args) {
     boolean = 0;
+}
+
+void cmd_vfs_init(REPLComm* this, char* args) {
+    if (args[0] != '\0') {
+        console_printf("vfs-init: лишние аргументы\n");
+        return;
+    }
+    vfs_reset();
 }
 
 void execute_com(REPLComm* table, int count, const char* user_cmd, char* user_args) {
@@ -67,7 +80,7 @@ void load_config(const char* file_name, char* vfs_out, char* script_out) {
     script_out[0] = '\0';
     FILE* f = fopen(file_name, "r");
     if (!f) {
-        printf("Не открыть файл\n");
+        console_printf("Не открыть файл\n");
         return;
     }
     char line[256];
@@ -99,7 +112,7 @@ void run_script(const char* file_name, REPLComm* table, int count, const char* V
     FILE* scr_file = fopen(file_name, "r");
     char buff[256];
     if (!scr_file) {
-        printf("Не удалось прочитать файл\n");
+        console_printf("Не удалось прочитать файл\n");
         boolean = 0;
         return;
     }
@@ -170,6 +183,8 @@ void handle_line(char* line, REPLComm* table, int count) {
 
 int main(int argc, char** argv) {
     setlocale(LC_ALL, "Russian");
+    SetConsoleOutputCP(1251);
+    SetConsoleCP(1251);
 
     const char* vfs_path = NULL;
     const char* script_path = NULL;
@@ -186,14 +201,15 @@ int main(int argc, char** argv) {
         else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc)
             config_path = argv[++i];
         else {
-            printf("Неизвестные аргументы.\n");
+            console_printf("Неизвестные аргументы.\n");
         }
     }
     REPLComm comm_dict[] = {
         {"cd", cmd_cd},
         {"ls", cmd_ls},
         {"echo", cmd_echo},
-        {"exit", cmd_exit}
+        {"exit", cmd_exit},
+        {"vfs-init", cmd_vfs_init}
     };
     if (config_path)
         load_config(config_path, vfs_buf, script_buf);
@@ -202,8 +218,12 @@ int main(int argc, char** argv) {
     if (script_buf[0] != '\0')
         script_path = script_buf;
 
+    vfs_use_name(vfs_path ? vfs_path : "default");
+    if (vfs_path)
+        vfs_load(vfs_path);
+
     VFS vfsys;
-    vfsys.VFS_name = vfs_path ? vfs_path : "default";
+    vfsys.VFS_name = vfs_name();
 
     if (script_path)
         run_script(script_path, comm_dict, sizeof(comm_dict) / sizeof(comm_dict[0]), vfsys.VFS_name);
