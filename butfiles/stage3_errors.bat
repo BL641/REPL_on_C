@@ -1,4 +1,3 @@
-chcp 65001 >nul
 @echo off
 setlocal
 call :find_root
@@ -7,28 +6,12 @@ call :find_exe
 if errorlevel 1 exit /b 1
 cd /d "%ROOT%"
 
-call :variant "%ROOT%\vfs\minimal" minimal
-call :variant "%ROOT%\vfs\files" files
-call :variant "%ROOT%\vfs\deep" deep
-pause
-exit /b 0
+echo ===== VFS path does not exist =====
+"%EXE%" --vfs "%ROOT%\vfs\no_such" --script "%ROOT%\config\stage3_start.txt" --config "%ROOT%\config\stage3.yaml"
 
-:variant
-set "SRC=%~1"
-set "DEST=%TEMP%\emu_vfs_%RANDOM%%RANDOM%"
-if not exist "%SRC%\." (
-    echo VFS folder not found: %SRC%
-    exit /b 0
-)
-mkdir "%DEST%"
-xcopy "%SRC%\*" "%DEST%" /E /I /Q /Y >nul
-echo.
-echo ===== VFS %~2 =====
-echo Exe: %EXE%
-"%EXE%" --vfs "%DEST%" --script "%ROOT%\config\stage3_start.txt" --config "%ROOT%\config\stage3.yaml"
-echo ----- disk after vfs-init -----
-dir /b /a "%DEST%"
-rmdir /s /q "%DEST%"
+echo ===== VFS path is a file, not a directory =====
+"%EXE%" --vfs "%ROOT%\src\c-flies\REPLV2.c" --script "%ROOT%\config\stage3_start.txt" --config "%ROOT%\config\stage3.yaml"
+pause
 exit /b 0
 
 :find_root

@@ -1,0 +1,19 @@
+ls
+touch /created.txt
+ls
+tac /created.txt
+touch /level1/extra.txt
+ls /level1
+touch /level1/level2/level3/leaf.txt
+tac /level1/level2/level3/leaf.txt
+cd /level1
+touch note.txt
+ls
+touch
+touch /missing/file.txt
+touch /root.txt/child.txt
+touch /level1
+touch /created.txt /level1/second.txt
+ls /
+ls /level1
+exit

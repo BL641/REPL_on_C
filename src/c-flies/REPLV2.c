@@ -12,6 +12,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#pragma comment(lib, "advapi32.lib")
 
 #include "VFS.h"
 
@@ -30,13 +31,71 @@ typedef struct REPLComm {
     const char* command;
     void (*Chandler)(struct REPLComm* table, char* args);
 } REPLComm;
+    
+static int first_arg(const char* args, char* dest, size_t n) {
+    size_t i = 0;
+    while (*args == ' ')
+        args++;
+    if (*args == '\0') {
+        dest[0] = '\0';
+        return 0;
+    }
+    while (*args && *args != ' ' && i + 1 < n)
+        dest[i++] = *args++;
+    dest[i] = '\0';
+    while (*args == ' ')
+        args++;
+    return *args ? 2 : 1;
+}
+
+static void ls_print(VNode* node) {
+    if (!node)
+        return;
+    ls_print(node->next);
+    printf("%s\n", node->name);
+}
 
 void cmd_cd(REPLComm* this, char* args) {
-    printf("cd: args = '%s'\n", args);
+    char path[STD_ARGSz];
+    int n = first_arg(args, path, sizeof(path));
+    int err;
+    if (n == 2) {
+        console_printf("cd: лишние аргументы\n");
+        return;
+    }
+    err = vfs_cd(n == 0 ? NULL : path);
+    if (err == 1)
+        console_printf("cd: файл не найден: %s\n", path);
+    else if (err == 2)
+        console_printf("cd: это не каталог: %s\n", path);
 }
 
 void cmd_ls(REPLComm* this, char* args) {
-    printf("ls: args = '%s'\n", args);
+    char path[STD_ARGSz];
+    VNode* node = NULL;
+    int n = first_arg(args, path, sizeof(path));
+    int err;
+    if (n == 2) {
+        console_printf("ls: лишние аргументы\n");
+        return;
+    }
+    if (n == 0)
+        node = vfs_cwd();
+    else {
+        err = vfs_resolve(path, &node);
+        if (err == 1) {
+            console_printf("ls: файл не найден: %s\n", path);
+            return;
+        }
+        if (err == 2) {
+            console_printf("ls: это не каталог: %s\n", path);
+            return;
+        }
+    }
+    if (!node->is_dir)
+        printf("%s\n", node->name);
+    else
+        ls_print(node->child);
 }
 
 void cmd_echo(REPLComm* this, char* args) {
@@ -58,6 +117,84 @@ void cmd_vfs_init(REPLComm* this, char* args) {
         return;
     }
     vfs_reset();
+}
+
+void cmd_whoami(REPLComm* this, char* args) {
+    char name[256];
+    DWORD size = sizeof(name);
+    if (args[0] != '\0') {
+        console_printf("whoami: лишние аргументы\n");
+        return;
+    }
+    if (!GetUserNameA(name, &size))
+        snprintf(name, sizeof(name), "user");
+    printf("%s\n", name);
+}
+
+static void tac_write(const char* data, size_t len) {
+    size_t pos;
+    if (!data || len == 0)
+        return;
+    pos = len;
+    while (pos > 0) {
+        size_t end = pos;
+        size_t start;
+        if (data[end - 1] == '\n')
+            end--;
+        if (end > 0 && data[end - 1] == '\r')
+            end--;
+        start = end;
+        while (start > 0 && data[start - 1] != '\n')
+            start--;
+        fwrite(data + start, 1, end - start, stdout);
+        fputc('\n', stdout);
+        if (start == 0)
+            break;
+        pos = start;
+    }
+}
+
+void cmd_tac(REPLComm* this, char* args) {
+    char buf[STD_ARGSz];
+    char* tok;
+    if (args[0] == '\0') {
+        console_printf("tac: не указан файл\n");
+        return;
+    }
+    snprintf(buf, sizeof(buf), "%s", args);
+    tok = strtok(buf, " ");
+    while (tok) {
+        VNode* node = NULL;
+        int err = vfs_resolve(tok, &node);
+        if (err == 1)
+            console_printf("tac: файл не найден: %s\n", tok);
+        else if (err == 2 || node->is_dir)
+            console_printf("tac: это каталог: %s\n", tok);
+        else
+            tac_write(node->data, node->data_len);
+        tok = strtok(NULL, " ");
+    }
+}
+
+void cmd_touch(REPLComm* this, char* args) {
+    char buf[STD_ARGSz];
+    char* tok;
+    if (args[0] == '\0') {
+        console_printf("touch: не указан файл\n");
+        return;
+    }
+    snprintf(buf, sizeof(buf), "%s", args);
+    tok = strtok(buf, " ");
+    while (tok) {
+        int err = vfs_touch(tok);
+        if (err == 1)
+            console_printf("touch: файл не найден: %s\n", tok);
+        else if (err == 2)
+            console_printf("touch: это каталог: %s\n", tok);
+        else if (err == 3)
+            console_printf("touch: это не каталог: %s\n", tok);
+        tok = strtok(NULL, " ");
+    }
 }
 
 void execute_com(REPLComm* table, int count, const char* user_cmd, char* user_args) {
@@ -208,6 +345,9 @@ int main(int argc, char** argv) {
         {"cd", cmd_cd},
         {"ls", cmd_ls},
         {"echo", cmd_echo},
+        {"whoami", cmd_whoami},
+        {"tac", cmd_tac},
+        {"touch", cmd_touch},
         {"exit", cmd_exit},
         {"vfs-init", cmd_vfs_init}
     };

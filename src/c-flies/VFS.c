@@ -9,6 +9,7 @@
 #include <windows.h>
 
 static VNode* g_root = NULL;
+static VNode* g_cwd = NULL;
 static char g_name[256] = "default";
 static char* g_physical = NULL;
 static int g_dirs = 0;
@@ -83,11 +84,13 @@ VNode* vfs_root(void) {
 }
 
 static void make_empty(void) {
+    g_cwd = NULL;
     node_free(g_root);
     g_root = (VNode*)xmalloc(sizeof(VNode));
     memset(g_root, 0, sizeof(VNode));
     g_root->name = xstrdup("");
     g_root->is_dir = 1;
+    g_cwd = g_root;
 }
 
 static int read_file(VNode* node, const char* path) {
@@ -205,8 +208,10 @@ int vfs_load(const char* path) {
         return 2;
     }
 
+    g_cwd = NULL;
     node_free(g_root);
     g_root = loaded;
+    g_cwd = g_root;
     free(g_physical);
     g_physical = xstrdup(path);
     console_printf("VFS загружена из \"%s\": каталогов %d, файлов %d\n", path, g_dirs, g_files);
@@ -275,6 +280,146 @@ static int clear_dir(const char* dir) {
 
     FindClose(h);
     return rc;
+}
+
+static int is_sep(char c) {
+    return c == '/' || c == '\\';
+}
+
+static VNode* find_child(VNode* dir, const char* name, size_t nlen) {
+    VNode* c;
+    for (c = dir->child; c; c = c->next) {
+        if (strlen(c->name) == nlen && strncmp(c->name, name, nlen) == 0)
+            return c;
+    }
+    return NULL;
+}
+
+VNode* vfs_cwd(void) {
+    if (!g_root)
+        make_empty();
+    if (!g_cwd)
+        g_cwd = g_root;
+    return g_cwd;
+}
+
+int vfs_resolve(const char* path, VNode** out) {
+    VNode* cur;
+    const char* p;
+
+    if (!g_root)
+        make_empty();
+    if (!g_cwd)
+        g_cwd = g_root;
+
+    cur = (path && is_sep(path[0])) ? g_root : g_cwd;
+    if (!path || path[0] == '\0') {
+        *out = cur;
+        return 0;
+    }
+
+    p = path;
+    while (*p) {
+        const char* start;
+        size_t nlen;
+        while (is_sep(*p))
+            p++;
+        if (*p == '\0')
+            break;
+        start = p;
+        while (*p && !is_sep(*p))
+            p++;
+        nlen = (size_t)(p - start);
+        if (nlen == 1 && start[0] == '.')
+            continue;
+        if (nlen == 2 && start[0] == '.' && start[1] == '.') {
+            if (cur->parent)
+                cur = cur->parent;
+            continue;
+        }
+        if (!cur->is_dir)
+            return 2;
+        cur = find_child(cur, start, nlen);
+        if (!cur)
+            return 1;
+    }
+    *out = cur;
+    return 0;
+}
+
+int vfs_cd(const char* path) {
+    VNode* node = NULL;
+    int err = vfs_resolve((path && path[0]) ? path : "/", &node);
+    if (err)
+        return err;
+    if (!node->is_dir)
+        return 2;
+    g_cwd = node;
+    return 0;
+}
+
+int vfs_touch(const char* path) {
+    char buf[512];
+    char* slash = NULL;
+    char* name;
+    char* s;
+    size_t n;
+    VNode* parent;
+    VNode* existing;
+    VNode* node;
+    int err;
+
+    if (!path || path[0] == '\0')
+        return 1;
+    if (!g_root)
+        make_empty();
+    if (!g_cwd)
+        g_cwd = g_root;
+
+    snprintf(buf, sizeof(buf), "%s", path);
+    n = strlen(buf);
+    while (n > 0 && is_sep(buf[n - 1]))
+        buf[--n] = '\0';
+    if (buf[0] == '\0')
+        return 2;
+
+    for (s = buf; *s; s++) {
+        if (is_sep(*s))
+            slash = s;
+    }
+
+    if (!slash) {
+        parent = g_cwd;
+        name = buf;
+    }
+    else if (slash == buf) {
+        parent = g_root;
+        name = slash + 1;
+    }
+    else {
+        *slash = '\0';
+        name = slash + 1;
+        err = vfs_resolve(buf, &parent);
+        if (err == 1)
+            return 1;
+        if (err == 2 || !parent->is_dir)
+            return 3;
+    }
+
+    if (name[0] == '\0' || strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+        return 2;
+
+    existing = find_child(parent, name, strlen(name));
+    if (existing)
+        return existing->is_dir ? 2 : 0;
+
+    node = (VNode*)xmalloc(sizeof(VNode));
+    memset(node, 0, sizeof(VNode));
+    node->name = xstrdup(name);
+    node->data = xstrdup("");
+    node->data_len = 0;
+    add_child(parent, node);
+    return 0;
 }
 
 void vfs_reset(void) {

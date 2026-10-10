@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="REPLV2/REPLV2.vcxproj" Id="cbe626a9-a655-480c-8f4b-1042f942f372" />
+</Solution>

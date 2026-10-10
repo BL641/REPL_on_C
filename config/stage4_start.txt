@@ -1,0 +1,26 @@
+echo stage4
+echo
+whoami
+whoami extra
+ls
+ls /level1
+ls /root.txt
+ls /no_such
+ls /root.txt/inside
+cd /level1
+ls
+cd level2/level3
+ls
+cd ..
+ls
+cd /no_such
+cd /root.txt
+cd /level1 extra
+cd
+ls
+tac /level1/level2/level3/leaf.txt
+tac /root.txt
+tac /no_such.txt
+tac /level1
+tac
+exit
