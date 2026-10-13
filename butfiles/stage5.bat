@@ -12,17 +12,17 @@ echo ----- disk after touch -----
 dir /s /b "%ROOT%\vfs\deep" | findstr /i /c:"created.txt" /c:"extra.txt" /c:"note.txt" /c:"second.txt"
 if errorlevel 1 echo These files are not on disk. touch changed only memory.
 pause
-exit /b 0
+
 
 :find_root
 set "ROOT=%~dp0"
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
-if exist "%ROOT%\config\stage5_start.txt" exit /b 0
+if exist "%ROOT%\config\stage5_start.txt"
 for %%I in ("%ROOT%\..") do set "ROOT=%%~fI"
-if exist "%ROOT%\config\stage5_start.txt" exit /b 0
+if exist "%ROOT%\config\stage5_start.txt"
 echo Project folder not found. Put this bat in butfiles or next to config.
 pause
-exit /b 1
+
 
 :find_exe
 set "EXE="
@@ -39,6 +39,6 @@ if not defined EXE (
     echo Looked near %ROOT%\x64\Debug and the folder above it.
     echo Build Debug x64 in Visual Studio first.
     pause
-    exit /b 1
+    
 )
-exit /b 0
+
